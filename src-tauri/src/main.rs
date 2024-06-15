@@ -149,7 +149,7 @@ fn main() {
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
-        // 窗口关闭不退出
+        // Close window without exiting
         .run(|_app_handle, event| {
             if let tauri::RunEvent::ExitRequested { api, .. } = event {
                 api.prevent_exit();
