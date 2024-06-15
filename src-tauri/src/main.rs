@@ -1,5 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![allow(clippy::too_many_arguments)]
 
 mod backup;
 mod clipboard;
@@ -94,18 +95,15 @@ fn main() {
                 Ok(()) => {}
                 Err(e) => Notification::new(app.config().tauri.bundle.identifier.clone())
                     .title("Failed to register global shortcut")
-                    .body(&e)
+                    .body(e)
                     .icon("pot")
                     .show()
                     .unwrap(),
             }
-            match get("proxy_enable") {
-                Some(v) => {
-                    if v.as_bool().unwrap() {
-                        let _ = set_proxy();
-                    }
+            if let Some(v) = get("proxy_enable") {
+                if v.as_bool().unwrap() {
+                    let _ = set_proxy();
                 }
-                None => {}
             }
             // Check Update
             check_update(app.handle());

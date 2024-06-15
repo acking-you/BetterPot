@@ -22,7 +22,7 @@ pub async fn webdav(
         .build()?;
     client.mkcol("/pot-app").await.unwrap_or_default();
     let client = ClientBuilder::new()
-        .set_host(format!("{}/pot-app", url.trim_end_matches("/")))
+        .set_host(format!("{}/pot-app", url.trim_end_matches('/')))
         .set_auth(Auth::Basic(username, password))
         .build()?;
     match operate {
@@ -49,7 +49,7 @@ pub async fn webdav(
             let mut config_dir_path = match config_dir() {
                 Some(v) => v,
                 None => {
-                    return Err(Error::Error("WebDav Get Config Dir Error".into()));
+                    return Err(Error::Internal("WebDav Get Config Dir Error".into()));
                 }
             };
             config_dir_path = config_dir_path.join("com.pot-app.desktop");
@@ -62,10 +62,10 @@ pub async fn webdav(
             let mut zip = zip::ZipWriter::new(zip_file);
             let options = FileOptions::default().compression_method(zip::CompressionMethod::Stored);
             zip.start_file("config.json", options)?;
-            zip.write(&std::fs::read(&config_path)?)?;
+            zip.write_all(&std::fs::read(&config_path)?)?;
             if database_path.exists() {
                 zip.start_file("history.db", options)?;
-                zip.write(&std::fs::read(&database_path)?)?;
+                zip.write_all(&std::fs::read(&database_path)?)?;
             }
             if plugin_path.exists() {
                 for entry in WalkDir::new(plugin_path) {
@@ -73,12 +73,12 @@ pub async fn webdav(
                     let path = entry.path();
                     let file_name = match path.strip_prefix(&config_dir_path)?.to_str() {
                         Some(v) => v,
-                        None => return Err(Error::Error("WebDav Strip Prefix Error".into())),
+                        None => return Err(Error::Internal("WebDav Strip Prefix Error".into())),
                     };
                     if path.is_file() {
                         info!("adding file {path:?} as {file_name:?} ...");
                         zip.start_file(file_name, options)?;
-                        zip.write(&std::fs::read(entry.path())?)?;
+                        zip.write_all(&std::fs::read(entry.path())?)?;
                     } else {
                         continue;
                     }
@@ -90,24 +90,20 @@ pub async fn webdav(
                 .put(&format!("/{}", name.unwrap()), std::fs::read(&zip_path)?)
                 .await
             {
-                Ok(()) => return Ok("".to_string()),
-                Err(e) => {
-                    return Err(Error::Error(format!("WebDav Put Error: {}", e).into()));
-                }
+                Ok(()) => Ok("".to_string()),
+                Err(e) => Err(Error::Internal(format!("WebDav Put Error: {}", e).into())),
             }
         }
 
         "delete" => match client.delete(&format!("/{}", name.unwrap())).await {
-            Ok(()) => return Ok("".to_string()),
-            Err(e) => {
-                return Err(Error::Error(format!("WebDav Delete Error: {}", e).into()));
-            }
+            Ok(()) => Ok("".to_string()),
+            Err(e) => Err(Error::Internal(
+                format!("WebDav Delete Error: {}", e).into(),
+            )),
         },
-        _ => {
-            return Err(Error::Error(
-                format!("WebDav Operate Error: {}", operate).into(),
-            ));
-        }
+        _ => Err(Error::Internal(
+            format!("WebDav Operate Error: {}", operate).into(),
+        )),
     }
 }
 
@@ -118,7 +114,7 @@ pub async fn local(operate: &str, path: String) -> Result<String, Error> {
             let mut config_dir_path = match config_dir() {
                 Some(v) => v,
                 None => {
-                    return Err(Error::Error("WebDav Get Config Dir Error".into()));
+                    return Err(Error::Internal("WebDav Get Config Dir Error".into()));
                 }
             };
             config_dir_path = config_dir_path.join("com.pot-app.desktop");
@@ -130,10 +126,10 @@ pub async fn local(operate: &str, path: String) -> Result<String, Error> {
             let mut zip = zip::ZipWriter::new(zip_file);
             let options = FileOptions::default().compression_method(zip::CompressionMethod::Stored);
             zip.start_file("config.json", options)?;
-            zip.write(&std::fs::read(&config_path)?)?;
+            zip.write_all(&std::fs::read(config_path)?)?;
             if database_path.exists() {
                 zip.start_file("history.db", options)?;
-                zip.write(&std::fs::read(&database_path)?)?;
+                zip.write_all(&std::fs::read(&database_path)?)?;
             }
             if plugin_path.exists() {
                 for entry in WalkDir::new(plugin_path) {
@@ -141,12 +137,12 @@ pub async fn local(operate: &str, path: String) -> Result<String, Error> {
                     let path = entry.path();
                     let file_name = match path.strip_prefix(&config_dir_path)?.to_str() {
                         Some(v) => v,
-                        None => return Err(Error::Error("Strip Prefix Error".into())),
+                        None => return Err(Error::Internal("Strip Prefix Error".into())),
                     };
                     if path.is_file() {
                         info!("adding file {path:?} as {file_name:?} ...");
                         zip.start_file(file_name, options)?;
-                        zip.write(&std::fs::read(entry.path())?)?;
+                        zip.write_all(&std::fs::read(entry.path())?)?;
                     } else {
                         continue;
                     }
@@ -165,11 +161,9 @@ pub async fn local(operate: &str, path: String) -> Result<String, Error> {
             zip.extract(config_dir_path)?;
             Ok("".to_string())
         }
-        _ => {
-            return Err(Error::Error(
-                format!("Local Operate Error: {}", operate).into(),
-            ));
-        }
+        _ => Err(Error::Internal(
+            format!("Local Operate Error: {}", operate).into(),
+        )),
     }
 }
 
@@ -198,10 +192,8 @@ pub async fn aliyun(operate: &str, path: String, url: String) -> Result<String, 
             zip.extract(config_dir_path)?;
             Ok("".to_string())
         }
-        _ => {
-            return Err(Error::Error(
-                format!("Local Operate Error: {}", operate).into(),
-            ));
-        }
+        _ => Err(Error::Internal(
+            format!("Local Operate Error: {}", operate).into(),
+        )),
     }
 }

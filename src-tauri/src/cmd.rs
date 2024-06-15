@@ -91,9 +91,30 @@ pub fn copy_img(app_handle: tauri::AppHandle, width: usize, height: usize) -> Re
         height,
         bytes: Cow::from(data.as_bytes()),
     };
-    let result = Clipboard::new()?.set_image(img)?;
-    Ok(result)
+    Ok(Clipboard::new()?.set_image(img)?)
 }
+
+type TranslatePluginCall = fn(
+    &str,
+    &str,
+    &str,
+    &str,
+    HashMap<String, String>,
+) -> Result<Value, Box<dyn std::error::Error>>;
+
+type TTSPluginCall =
+    fn(&str, &str, HashMap<String, String>) -> Result<Value, Box<dyn std::error::Error>>;
+
+type RecPluginCall =
+    fn(&str, &str, HashMap<String, String>) -> Result<Value, Box<dyn std::error::Error>>;
+
+type CollectPluginCall = fn(
+    &str,
+    &str,
+    &str,
+    &str,
+    HashMap<String, String>,
+) -> Result<Value, Box<dyn std::error::Error>>;
 
 #[tauri::command(async)]
 pub fn invoke_plugin(
@@ -133,15 +154,7 @@ pub fn invoke_plugin(
         };
         match plugin_type {
             "translate" => {
-                let func: libloading::Symbol<
-                    fn(
-                        &str,
-                        &str,
-                        &str,
-                        &str,
-                        HashMap<String, String>,
-                    ) -> Result<Value, Box<dyn std::error::Error>>,
-                > = match lib.get(b"translate") {
+                let func: libloading::Symbol<TranslatePluginCall> = match lib.get(b"translate") {
                     Ok(v) => v,
                     Err(e) => return Err(e.to_string()),
                 };
@@ -157,13 +170,7 @@ pub fn invoke_plugin(
                 }
             }
             "tts" => {
-                let func: libloading::Symbol<
-                    fn(
-                        &str,
-                        &str,
-                        HashMap<String, String>,
-                    ) -> Result<Value, Box<dyn std::error::Error>>,
-                > = match lib.get(b"tts") {
+                let func: libloading::Symbol<TTSPluginCall> = match lib.get(b"tts") {
                     Ok(v) => v,
                     Err(e) => return Err(e.to_string()),
                 };
@@ -173,13 +180,7 @@ pub fn invoke_plugin(
                 }
             }
             "recognize" => {
-                let func: libloading::Symbol<
-                    fn(
-                        &str,
-                        &str,
-                        HashMap<String, String>,
-                    ) -> Result<Value, Box<dyn std::error::Error>>,
-                > = match lib.get(b"recognize") {
+                let func: libloading::Symbol<RecPluginCall> = match lib.get(b"recognize") {
                     Ok(v) => v,
                     Err(e) => return Err(e.to_string()),
                 };
@@ -189,15 +190,7 @@ pub fn invoke_plugin(
                 }
             }
             "collection" => {
-                let func: libloading::Symbol<
-                    fn(
-                        &str,
-                        &str,
-                        &str,
-                        &str,
-                        HashMap<String, String>,
-                    ) -> Result<Value, Box<dyn std::error::Error>>,
-                > = match lib.get(b"collection") {
+                let func: libloading::Symbol<CollectPluginCall> = match lib.get(b"collection") {
                     Ok(v) => v,
                     Err(e) => return Err(e.to_string()),
                 };
@@ -212,9 +205,7 @@ pub fn invoke_plugin(
                     Err(e) => Err(e.to_string()),
                 }
             }
-            _ => {
-                return Err("Unknown Plugin Type".to_string());
-            }
+            _ => Err("Unknown Plugin Type".to_string()),
         }
     }
 }
@@ -238,7 +229,7 @@ pub fn set_proxy() -> Result<bool, ()> {
     std::env::set_var("http_proxy", &proxy);
     std::env::set_var("https_proxy", &proxy);
     std::env::set_var("all_proxy", &proxy);
-    std::env::set_var("no_proxy", &no_proxy);
+    std::env::set_var("no_proxy", no_proxy);
     Ok(true)
 }
 
@@ -260,7 +251,7 @@ pub fn install_plugin(path_list: Vec<String>, plugin_type: &str) -> Result<i32, 
         "linux" => ".so",
         "macos" => ".dylib",
         "windows" => ".dll",
-        _ => return Err(Error::Error("Unknown OS".into())),
+        _ => return Err(Error::Internal("Unknown OS".into())),
     };
     for path in path_list {
         if !path.ends_with("potext") {
@@ -270,7 +261,7 @@ pub fn install_plugin(path_list: Vec<String>, plugin_type: &str) -> Result<i32, 
         let file_name = path.file_name().unwrap().to_str().unwrap();
         let file_name = file_name.replace(".potext", "");
         if !file_name.starts_with("[plugin]") {
-            return Err(Error::Error(
+            return Err(Error::Internal(
                 "Invalid Plugin: file name must start with [plugin]".into(),
             ));
         }
@@ -283,12 +274,12 @@ pub fn install_plugin(path_list: Vec<String>, plugin_type: &str) -> Result<i32, 
         std::fs::create_dir_all(&config_path)?;
         let mut zip = zip::ZipArchive::new(std::fs::File::open(path)?)?;
         if zip.by_name(format!("plugin{ext_name}").as_str()).is_err() {
-            return Err(Error::Error(
+            return Err(Error::Internal(
                 format!("Invalid Plugin: miss plugin{ext_name}").into(),
             ));
         }
         if zip.by_name("info.json").is_err() {
-            return Err(Error::Error("Invalid Plugin: miss info.json".into()));
+            return Err(Error::Internal("Invalid Plugin: miss info.json".into()));
         }
         zip.extract(&plugin_path)?;
         let info_file_path = plugin_path.join("info.json");
@@ -296,7 +287,9 @@ pub fn install_plugin(path_list: Vec<String>, plugin_type: &str) -> Result<i32, 
         let info: serde_json::Value = serde_json::from_str(&info_content)?;
         if info["plugin_type"].as_str().unwrap() != plugin_type {
             std::fs::remove_dir_all(plugin_path)?;
-            return Err(Error::Error("Invalid Plugin: plugin type not match".into()));
+            return Err(Error::Internal(
+                "Invalid Plugin: plugin type not match".into(),
+            ));
         }
         success_count += 1;
     }

@@ -4,7 +4,7 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
-    Error(#[from] Box<dyn std::error::Error>),
+    Internal(#[from] Box<dyn std::error::Error>),
     #[error(transparent)]
     Dav(#[from] reqwest_dav::Error),
     #[error(transparent)]
