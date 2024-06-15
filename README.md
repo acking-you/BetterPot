@@ -2,6 +2,8 @@
 
 # Pot (派了个萌的翻译器)
 
+无意中发现了Pot这一非常优秀的开源翻译器，但对于我个人使用而言还是有一些不足，故尝试基于该源码二开。
+
 > 🌈 一个跨平台的划词翻译软件 ([QQ 频道](https://pd.qq.com/s/akns94e1r))
 
 ![License](https://img.shields.io/github/license/pot-app/pot-desktop.svg)
