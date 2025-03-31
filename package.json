@@ -1,7 +1,7 @@
 {
-    "name": "pot",
+    "name": "better-pot",
     "private": true,
-    "version": "3.0.6",
+    "version": "0.0.3",
     "type": "module",
     "scripts": {
         "dev": "vite",
