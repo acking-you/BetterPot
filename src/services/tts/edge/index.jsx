@@ -13,10 +13,19 @@ export async function tts(text, lang, options = {}) {
 
     if (is_auto) {
         if (lang == "en") {
-            if (!requestPath.includes("en")) "en-US-EmmaNeural";
+            if (!requestPath.includes("en")) {
+                if (requestPath.includes("option1"))
+                    requestPath = "en-US-ChristopherNeural";
+                else if (requestPath.includes("option2"))
+                    requestPath = "en-US-JennyNeural";
+                else
+                    requestPath = "en-US-EmmaNeural";
+            }
         } else if (lang == "zh") {
-            if (!requestPath.includes("zh")) "en-US-EmmaNeural";
-            requestPath = "zh-CN-XiaoxiaoNeural";
+            if (!requestPath.includes("zh"))
+                requestPath = "zh-CN-XiaoxiaoNeural";
+        } else {
+            requestPath = "en-US-JennyNeural";
         }
     }
 
